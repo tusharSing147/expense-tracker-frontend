@@ -48,7 +48,10 @@ function PaginationLink({
     <Button
       variant={isActive ? "outline" : "ghost"}
       size={size}
-      className={cn(className)}
+      className={cn(
+        "data-active:border-accent data-active:bg-accent-soft data-active:text-accent-soft-ink",
+        className
+      )}
       nativeButton={false}
       render={
         <a

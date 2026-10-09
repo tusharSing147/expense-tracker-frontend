@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { QueryClient } from '@tanstack/react-query'
 import { toast } from '@/components/ui/toast'
 import { createExpense, deleteExpense, listExpenses, updateExpense } from '../api/expenses'
-import type { ExpenseCreate, ExpenseUpdate, ListExpensesParams } from '../types/expense'
+import type { Expense, ExpenseCreate, ExpenseUpdate, ListExpensesParams } from '../types/expense'
 
 async function invalidateExpenseQueries(queryClient: QueryClient): Promise<void> {
   await queryClient.invalidateQueries({ queryKey: ['expenses'] })
@@ -47,9 +47,37 @@ export function useDeleteExpense() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (id: string) => deleteExpense(id),
-    onSuccess: () => {
-      toast.add({ title: 'Expense deleted', type: 'success' })
+    mutationFn: (expense: Expense) => deleteExpense(expense.id),
+    onSuccess: (_data, expense) => {
+      const toastId = toast.add({
+        title: 'Expense deleted',
+        type: 'success',
+        actionProps: {
+          children: 'Undo',
+          onClick: () => {
+            createExpense({
+              title: expense.title,
+              amount: expense.amount,
+              category: expense.category,
+              date: expense.date,
+              description: expense.description,
+            }).then(
+              () => {
+                toast.close(toastId)
+
+                return invalidateExpenseQueries(queryClient)
+              },
+              () => {
+                toast.add({
+                  type: 'error',
+                  title: 'Expense not restored',
+                  description: 'Add it again from the expenses page.',
+                })
+              },
+            )
+          },
+        },
+      })
 
       return invalidateExpenseQueries(queryClient)
     },

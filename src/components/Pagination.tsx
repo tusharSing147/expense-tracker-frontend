@@ -17,34 +17,22 @@ export interface PaginationProps {
 
 type PageToken = number | 'ellipsis'
 
+const MAX_PAGE_BUTTONS = 5
+
 function buildPageTokens(page: number, totalPages: number): PageToken[] {
-  if (totalPages <= 7) {
+  if (totalPages <= MAX_PAGE_BUTTONS) {
     return Array.from({ length: totalPages }, (_, index) => index + 1)
   }
 
-  const pages = new Set<number>([1, page, totalPages])
-
-  if (page > 1) {
-    pages.add(page - 1)
+  if (page <= 3) {
+    return [1, 2, 3, 4, 'ellipsis', totalPages]
   }
 
-  if (page < totalPages) {
-    pages.add(page + 1)
+  if (page >= totalPages - 2) {
+    return [1, 'ellipsis', totalPages - 3, totalPages - 2, totalPages - 1, totalPages]
   }
 
-  const tokens: PageToken[] = []
-  let previous = 0
-
-  for (const value of [...pages].sort((left, right) => left - right)) {
-    if (value - previous > 1) {
-      tokens.push('ellipsis')
-    }
-
-    tokens.push(value)
-    previous = value
-  }
-
-  return tokens
+  return [1, 'ellipsis', page - 1, page, page + 1, 'ellipsis', totalPages]
 }
 
 export function Pagination({ page, totalPages, onPageChange }: PaginationProps) {
@@ -66,12 +54,12 @@ export function Pagination({ page, totalPages, onPageChange }: PaginationProps) 
   }
 
   return (
-    <PaginationNav>
-      <PaginationContent>
+    <PaginationNav className="mt-[var(--space-5)]">
+      <PaginationContent className="gap-1">
         <PaginationItem>
           <PaginationPrevious
             aria-disabled={atStart || undefined}
-            className="aria-disabled:pointer-events-none aria-disabled:opacity-50"
+            className="h-8 px-3 text-sm aria-disabled:pointer-events-none aria-disabled:opacity-40"
             onClick={atStart ? undefined : () => handlePageChange(current - 1)}
           />
         </PaginationItem>
@@ -80,19 +68,21 @@ export function Pagination({ page, totalPages, onPageChange }: PaginationProps) 
           if (token === 'ellipsis') {
             return (
               <PaginationItem key={`ellipsis-${index}`} className="hidden sm:block">
-                <PaginationEllipsis />
+                <PaginationEllipsis className="px-1 text-ink-muted" />
               </PaginationItem>
             )
           }
 
           const isActive = token === current
-          const isFar = !isActive && Math.abs(token - current) > 1 && totalPages > 5
+          const isFar = !isActive && Math.abs(token - current) > 1 && totalPages > MAX_PAGE_BUTTONS
 
           return (
             <PaginationItem key={token} className={cn(isFar && 'hidden sm:block')}>
               <PaginationLink
                 isActive={isActive}
                 aria-label={`Page ${token}`}
+                size="sm"
+                className="min-w-8 px-2 text-sm font-medium"
                 onClick={() => handlePageChange(token)}
               >
                 {token}
@@ -104,7 +94,7 @@ export function Pagination({ page, totalPages, onPageChange }: PaginationProps) 
         <PaginationItem>
           <PaginationNext
             aria-disabled={atEnd || undefined}
-            className="aria-disabled:pointer-events-none aria-disabled:opacity-50"
+            className="h-8 px-3 text-sm aria-disabled:pointer-events-none aria-disabled:opacity-40"
             onClick={atEnd ? undefined : () => handlePageChange(current + 1)}
           />
         </PaginationItem>

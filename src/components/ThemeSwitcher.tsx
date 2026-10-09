@@ -10,9 +10,9 @@ import {
 import { useTheme } from '../hooks/useTheme'
 
 const THEME_OPTIONS = [
+  { value: 'system', label: 'System' },
   { value: 'light', label: 'Light' },
   { value: 'dark', label: 'Dark' },
-  { value: 'system', label: 'System' },
 ]
 
 const THEME_ICONS = {
@@ -30,7 +30,12 @@ export function ThemeSwitcher() {
       <DropdownMenuTrigger
         aria-label="Theme"
         title="Theme"
-        render={<Button variant="ghost" size="icon" />}
+        render={
+          <Button
+            variant="ghost"
+            className="h-10 w-10 rounded-sm text-ink-muted transition-colors duration-[var(--duration-fast)] hover:bg-surface-sunken hover:text-ink"
+          />
+        }
       >
         <ThemeIcon />
       </DropdownMenuTrigger>

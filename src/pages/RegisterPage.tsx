@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { CheckIcon, CircleAlertIcon } from 'lucide-react'
+import { cn } from 'cn'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -12,6 +14,8 @@ import { ApiError } from '../types/api'
 import { fieldErrorsFromApi } from '../utils/errorMessages'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+type RegisterField = 'name' | 'email' | 'password' | 'confirmPassword'
 
 function validateRegistration(
   name: string,
@@ -64,6 +68,24 @@ export function RegisterPage() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [banner, setBanner] = useState('')
 
+  const passwordRules = [
+    {
+      label: 'Between 8 and 72 characters',
+      met: password.length >= 8 && password.length <= 72,
+    },
+    {
+      label: 'Includes a letter and a digit',
+      met: /[a-zA-Z]/.test(password) && /[0-9]/.test(password),
+    },
+    {
+      label: "Doesn't match your name or email",
+      met:
+        password.length > 0 &&
+        password.toLowerCase() !== name.trim().toLowerCase() &&
+        password.toLowerCase() !== email.trim().toLowerCase(),
+    },
+  ]
+
   function clearFieldError(field: string) {
     setFieldErrors((current) => {
       const next = { ...current }
@@ -98,6 +120,16 @@ export function RegisterPage() {
     setBanner('')
   }
 
+  function handleBlur(field: RegisterField) {
+    const message = validateRegistration(name, email, password, confirmPassword)[field]
+
+    if (message) {
+      setFieldErrors((current) => ({ ...current, [field]: message }))
+    } else {
+      clearFieldError(field)
+    }
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
@@ -129,7 +161,6 @@ export function RegisterPage() {
 
       if (error instanceof ApiError && error.code === 'EMAIL_TAKEN') {
         setFieldErrors({ email: 'An account with this email already exists' })
-        setBanner('An account with this email already exists.')
         return
       }
 
@@ -147,10 +178,13 @@ export function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center px-4 py-12">
-      <Card className="w-full max-w-md gap-6 p-8">
+    <div className="flex min-h-dvh flex-col items-center justify-center bg-canvas px-4 py-[var(--space-6)]">
+      <Card className="w-full max-w-[420px] gap-[var(--space-5)] p-[var(--space-6)]">
         <CardHeader className="flex flex-col items-center gap-4 px-0 text-center">
-          <div className="flex size-11 items-center justify-center rounded-xl bg-violet-600 text-lg font-semibold text-white">
+          <div
+            aria-hidden="true"
+            className="flex size-11 items-center justify-center rounded-sm bg-accent text-lg font-semibold text-ink-on-accent"
+          >
             ₹
           </div>
 
@@ -158,32 +192,28 @@ export function RegisterPage() {
             <CardTitle
               role="heading"
               aria-level={1}
-              className="text-2xl font-semibold text-gray-900 dark:text-gray-100"
+              className="font-display text-xl font-medium tracking-[var(--tracking-display)] text-ink"
             >
               Create your account
             </CardTitle>
 
-            <CardDescription className="text-sm text-gray-500 dark:text-gray-400">
+            <CardDescription className="mt-1 text-sm text-ink-muted">
               Start tracking expenses in minutes
             </CardDescription>
           </div>
         </CardHeader>
 
-        <CardContent className="flex flex-col gap-6 px-0">
+        <CardContent className="flex flex-col gap-[var(--space-5)] px-0">
           {banner && (
             <Alert variant="destructive">
+              <CircleAlertIcon aria-hidden="true" />
               <AlertDescription>{banner}</AlertDescription>
             </Alert>
           )}
 
-          <form className="flex flex-col gap-4" onSubmit={handleSubmit} noValidate>
+          <form className="flex flex-col gap-[var(--space-4)]" onSubmit={handleSubmit} noValidate>
             <Field data-invalid={fieldErrors.name ? true : undefined}>
-              <FieldLabel htmlFor="name" className="gap-0.5">
-                Name
-                <span aria-hidden="true" className="text-destructive">
-                  *
-                </span>
-              </FieldLabel>
+              <FieldLabel htmlFor="name">Name</FieldLabel>
 
               <Input
                 id="name"
@@ -194,18 +224,14 @@ export function RegisterPage() {
                 value={name}
                 aria-invalid={Boolean(fieldErrors.name)}
                 onChange={handleNameChange}
+                onBlur={() => handleBlur('name')}
               />
 
               {fieldErrors.name && <FieldError id="name-error">{fieldErrors.name}</FieldError>}
             </Field>
 
             <Field data-invalid={fieldErrors.email ? true : undefined}>
-              <FieldLabel htmlFor="email" className="gap-0.5">
-                Email
-                <span aria-hidden="true" className="text-destructive">
-                  *
-                </span>
-              </FieldLabel>
+              <FieldLabel htmlFor="email">Email</FieldLabel>
 
               <Input
                 id="email"
@@ -216,18 +242,14 @@ export function RegisterPage() {
                 value={email}
                 aria-invalid={Boolean(fieldErrors.email)}
                 onChange={handleEmailChange}
+                onBlur={() => handleBlur('email')}
               />
 
               {fieldErrors.email && <FieldError id="email-error">{fieldErrors.email}</FieldError>}
             </Field>
 
             <Field data-invalid={fieldErrors.password ? true : undefined}>
-              <FieldLabel htmlFor="password" className="gap-0.5">
-                Password
-                <span aria-hidden="true" className="text-destructive">
-                  *
-                </span>
-              </FieldLabel>
+              <FieldLabel htmlFor="password">Password</FieldLabel>
 
               <Input
                 id="password"
@@ -237,8 +259,28 @@ export function RegisterPage() {
                 placeholder="At least 8 characters"
                 value={password}
                 aria-invalid={Boolean(fieldErrors.password)}
+                aria-describedby="password-rules"
                 onChange={handlePasswordChange}
+                onBlur={() => handleBlur('password')}
               />
+
+              <ul id="password-rules" className="flex flex-col gap-1 text-xs text-ink-muted">
+                {passwordRules.map((rule) => (
+                  <li
+                    key={rule.label}
+                    className={cn(
+                      'flex items-center gap-1.5',
+                      rule.met ? 'text-positive-ink' : 'text-ink-muted',
+                    )}
+                  >
+                    <span className="flex h-3 w-3 shrink-0 items-center justify-center">
+                      {rule.met && <CheckIcon aria-hidden="true" className="h-3 w-3" />}
+                    </span>
+                    <span className="sr-only">{rule.met ? 'Met: ' : 'Not met yet: '}</span>
+                    <span>{rule.label}</span>
+                  </li>
+                ))}
+              </ul>
 
               {fieldErrors.password && (
                 <FieldError id="password-error">{fieldErrors.password}</FieldError>
@@ -246,12 +288,7 @@ export function RegisterPage() {
             </Field>
 
             <Field data-invalid={fieldErrors.confirmPassword ? true : undefined}>
-              <FieldLabel htmlFor="confirmPassword" className="gap-0.5">
-                Confirm password
-                <span aria-hidden="true" className="text-destructive">
-                  *
-                </span>
-              </FieldLabel>
+              <FieldLabel htmlFor="confirmPassword">Confirm password</FieldLabel>
 
               <Input
                 id="confirmPassword"
@@ -262,6 +299,7 @@ export function RegisterPage() {
                 value={confirmPassword}
                 aria-invalid={Boolean(fieldErrors.confirmPassword)}
                 onChange={handleConfirmPasswordChange}
+                onBlur={() => handleBlur('confirmPassword')}
               />
 
               {fieldErrors.confirmPassword && (
@@ -269,18 +307,18 @@ export function RegisterPage() {
               )}
             </Field>
 
-            <Button type="submit" className="w-full" disabled={pending.register}>
+            <Button type="submit" className="h-[38px] w-full" disabled={pending.register}>
               {pending.register && <Spinner className="size-4" />}
               Create account
             </Button>
           </form>
         </CardContent>
 
-        <p className="text-center text-sm text-gray-500 dark:text-gray-400">
+        <p className="text-center text-sm text-ink-muted">
           Already have an account?{' '}
           <Link
             to="/login"
-            className="font-medium text-violet-600 hover:underline dark:text-violet-400"
+            className="font-medium text-accent underline-offset-4 hover:text-accent-hover hover:underline"
           >
             Sign in
           </Link>

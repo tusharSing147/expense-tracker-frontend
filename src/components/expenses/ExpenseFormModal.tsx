@@ -22,18 +22,21 @@ import {
 } from '@/components/ui/select'
 import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
-import { useCategories } from '../../hooks/useCategories'
 import { useCreateExpense, useUpdateExpense } from '../../hooks/useExpenses'
 import type { Category, Expense, ExpenseCreate, ExpenseUpdate } from '../../types/expense'
 import { CATEGORIES } from '../../types/expense'
 import { apiErrorMessage, fieldErrorsFromApi } from '../../utils/errorMessages'
+import { formatDateOnly } from '../../utils/format'
 import { cn } from '@/lib/utils'
 
 export interface ExpenseFormModalProps {
   open: boolean
   onClose: () => void
   expense: Expense | null
+  prefill?: Expense | null
 }
+
+type ExpenseField = 'title' | 'amount' | 'category' | 'date' | 'description'
 
 interface ExpenseFormValues {
   title: string
@@ -43,6 +46,12 @@ interface ExpenseFormValues {
   description: string
 }
 
+const AMOUNT_PATTERN = /^\d+(\.\d{1,2})?$/
+const AMOUNT_DECIMAL_PATTERN = /^\d+(\.\d+)?$/
+const MAX_AMOUNT = 9999999999.99
+const MAX_TITLE = 120
+const MAX_NOTE = 500
+
 function todayPlusOneYear(): string {
   const now = new Date()
   const next = new Date(Date.UTC(now.getUTCFullYear() + 1, now.getUTCMonth(), now.getUTCDate()))
@@ -50,53 +59,88 @@ function todayPlusOneYear(): string {
   return next.toISOString().slice(0, 10)
 }
 
-function validateExpenseForm(values: ExpenseFormValues): Record<string, string> {
-  const errors: Record<string, string> = {}
-  const title = values.title.trim()
+function validateField(field: ExpenseField, value: string): string | undefined {
+  switch (field) {
+    case 'title': {
+      const title = value.trim()
 
-  if (!title) {
-    errors.title = 'Title is required'
-  } else if (title.length > 120) {
-    errors.title = 'Title must be 120 characters or fewer'
-  }
+      if (!title) {
+        return 'Title is required.'
+      }
 
-  const amount = values.amount.trim()
+      if (title.length > MAX_TITLE) {
+        return `Keep the title to ${MAX_TITLE} characters or fewer.`
+      }
 
-  if (!amount) {
-    errors.amount = 'Amount is required'
-  } else if (!/^\d+(\.\d{1,2})?$/.test(amount)) {
-    errors.amount = 'Enter a valid amount with up to 2 decimal places'
-  } else if (Number(amount) <= 0) {
-    errors.amount = 'Amount must be greater than 0'
-  } else if (Number(amount) > 9999999999.99) {
-    errors.amount = 'Amount must be 9,999,999,999.99 or less'
-  }
+      return undefined
+    }
 
-  if (!CATEGORIES.includes(values.category as Category)) {
-    errors.category = 'Select a category'
-  }
+    case 'amount': {
+      const amount = value.trim()
 
-  const date = values.date.trim()
+      if (!amount) {
+        return 'Amount is required.'
+      }
 
-  if (!date) {
-    errors.date = 'Date is required'
-  } else if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-    errors.date = 'Enter a valid date'
-  } else {
-    const parsed = new Date(`${date}T00:00:00Z`)
+      if (!AMOUNT_PATTERN.test(amount)) {
+        return AMOUNT_DECIMAL_PATTERN.test(amount)
+          ? 'Use up to two decimal places.'
+          : 'Enter an amount using digits only, for example 120.50.'
+      }
 
-    if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date) {
-      errors.date = 'Enter a valid date'
-    } else if (date > todayPlusOneYear()) {
-      errors.date = 'Date cannot be more than one year in the future'
+      if (Number(amount) <= 0) {
+        return 'Enter an amount greater than 0.'
+      }
+
+      if (Number(amount) > MAX_AMOUNT) {
+        return 'Enter an amount of 9,999,999,999.99 or less.'
+      }
+
+      return undefined
+    }
+
+    case 'category': {
+      if (!CATEGORIES.includes(value as Category)) {
+        return 'Select a category.'
+      }
+
+      return undefined
+    }
+
+    case 'date': {
+      const date = value.trim()
+
+      if (!date) {
+        return 'Date is required.'
+      }
+
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return 'Enter the date as YYYY-MM-DD.'
+      }
+
+      const parsed = new Date(`${date}T00:00:00Z`)
+
+      if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date) {
+        return 'Enter a valid date.'
+      }
+
+      const maxDate = todayPlusOneYear()
+
+      if (date > maxDate) {
+        return `Pick a date on or before ${formatDateOnly(maxDate)}.`
+      }
+
+      return undefined
+    }
+
+    case 'description': {
+      if (value.trim().length > MAX_NOTE) {
+        return `Keep the note to ${MAX_NOTE} characters or fewer.`
+      }
+
+      return undefined
     }
   }
-
-  if (values.description.trim().length > 500) {
-    errors.description = 'Description must be 500 characters or fewer'
-  }
-
-  return errors
 }
 
 function buildCreatePayload(values: ExpenseFormValues): ExpenseCreate {
@@ -150,36 +194,44 @@ function stripScopePrefix(fields: Record<string, string>): Record<string, string
   )
 }
 
-export function ExpenseFormModal({ open, onClose, expense }: ExpenseFormModalProps) {
+export function ExpenseFormModal({ open, onClose, expense, prefill }: ExpenseFormModalProps) {
   if (!open) {
     return null
   }
 
-  return <ExpenseFormDialog key={expense?.id ?? 'create'} onClose={onClose} expense={expense} />
+  return (
+    <ExpenseFormDialog
+      key={expense?.id ?? (prefill ? `duplicate-${prefill.id}` : 'create')}
+      onClose={onClose}
+      expense={expense}
+      prefill={prefill}
+    />
+  )
 }
 
 interface ExpenseFormDialogProps {
   onClose: () => void
   expense: Expense | null
+  prefill?: Expense | null
 }
 
-function ExpenseFormDialog({ onClose, expense }: ExpenseFormDialogProps) {
-  const categories = useCategories()
+function ExpenseFormDialog({ onClose, expense, prefill }: ExpenseFormDialogProps) {
+  const source = expense ?? prefill ?? null
   const createMutation = useCreateExpense()
   const updateMutation = useUpdateExpense()
 
-  const [title, setTitle] = useState(expense?.title ?? '')
-  const [amount, setAmount] = useState(expense ? String(expense.amount) : '')
-  const [category, setCategory] = useState(expense?.category ?? '')
-  const [date, setDate] = useState(expense?.date ?? new Date().toISOString().slice(0, 10))
-  const [description, setDescription] = useState(expense?.description ?? '')
+  const [title, setTitle] = useState(source?.title ?? '')
+  const [amount, setAmount] = useState(source ? String(source.amount) : '')
+  const [category, setCategory] = useState(source?.category ?? '')
+  const [date, setDate] = useState(source?.date ?? new Date().toISOString().slice(0, 10))
+  const [description, setDescription] = useState(source?.description ?? '')
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [banner, setBanner] = useState('')
 
   const pending = expense ? updateMutation.isPending : createMutation.isPending
   const maxDate = todayPlusOneYear()
 
-  function clearFieldError(field: string) {
+  function clearFieldError(field: ExpenseField) {
     setFieldErrors((current) => {
       const next = { ...current }
 
@@ -187,6 +239,24 @@ function ExpenseFormDialog({ onClose, expense }: ExpenseFormDialogProps) {
 
       return next
     })
+  }
+
+  function applyFieldError(field: ExpenseField, error: string | undefined) {
+    setFieldErrors((current) => {
+      const next = { ...current }
+
+      if (error) {
+        next[field] = error
+      } else {
+        delete next[field]
+      }
+
+      return next
+    })
+  }
+
+  function handleFieldBlur(field: ExpenseField, value: string) {
+    applyFieldError(field, validateField(field, value))
   }
 
   function handleTitleChange(event: ChangeEvent<HTMLInputElement>) {
@@ -231,7 +301,15 @@ function ExpenseFormDialog({ onClose, expense }: ExpenseFormDialogProps) {
     }
 
     const values: ExpenseFormValues = { title, amount, category, date, description }
-    const errors = validateExpenseForm(values)
+    const errors: Record<string, string> = {}
+
+    for (const field of ['title', 'amount', 'category', 'date', 'description'] as const) {
+      const error = validateField(field, values[field])
+
+      if (error) {
+        errors[field] = error
+      }
+    }
 
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors)
@@ -289,7 +367,7 @@ function ExpenseFormDialog({ onClose, expense }: ExpenseFormDialogProps) {
         <form id="expense-form" className="flex flex-col gap-4" onSubmit={handleSubmit} noValidate>
           {banner && <Alert variant="destructive">{banner}</Alert>}
 
-          <Field data-invalid={Boolean(fieldErrors.title)}>
+          <Field>
             <FieldLabel htmlFor="expense-title" className="gap-0.5">
               Title
               <span aria-hidden="true" className="text-destructive">
@@ -303,14 +381,14 @@ function ExpenseFormDialog({ onClose, expense }: ExpenseFormDialogProps) {
               type="text"
               placeholder="e.g. Groceries"
               value={title}
-              aria-invalid={Boolean(fieldErrors.title)}
               onChange={handleTitleChange}
+              onBlur={(event) => handleFieldBlur('title', event.target.value)}
             />
 
-            <FieldError>{fieldErrors.title}</FieldError>
+            {fieldErrors.title && <FieldError>{fieldErrors.title}</FieldError>}
           </Field>
 
-          <Field data-invalid={Boolean(fieldErrors.amount)}>
+          <Field>
             <FieldLabel htmlFor="expense-amount" className="gap-0.5">
               Amount
               <span aria-hidden="true" className="text-destructive">
@@ -318,21 +396,31 @@ function ExpenseFormDialog({ onClose, expense }: ExpenseFormDialogProps) {
               </span>
             </FieldLabel>
 
-            <Input
-              id="expense-amount"
-              name="amount"
-              type="text"
-              inputMode="decimal"
-              placeholder="0.00"
-              value={amount}
-              aria-invalid={Boolean(fieldErrors.amount)}
-              onChange={handleAmountChange}
-            />
+            <div className="relative">
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-ink-muted"
+              >
+                ₹
+              </span>
 
-            <FieldError>{fieldErrors.amount}</FieldError>
+              <Input
+                id="expense-amount"
+                name="amount"
+                type="text"
+                inputMode="decimal"
+                className="pl-7"
+                placeholder="0.00"
+                value={amount}
+                onChange={handleAmountChange}
+                onBlur={(event) => handleFieldBlur('amount', event.target.value)}
+              />
+            </div>
+
+            {fieldErrors.amount && <FieldError>{fieldErrors.amount}</FieldError>}
           </Field>
 
-          <Field data-invalid={Boolean(fieldErrors.category)}>
+          <Field>
             <FieldLabel htmlFor="expense-category" className="gap-0.5">
               Category
               <span aria-hidden="true" className="text-destructive">
@@ -343,15 +431,23 @@ function ExpenseFormDialog({ onClose, expense }: ExpenseFormDialogProps) {
             <Select value={category} onValueChange={handleCategoryChange}>
               <SelectTrigger
                 id="expense-category"
-                aria-invalid={Boolean(fieldErrors.category)}
                 className="w-full"
+                onBlur={(event) => {
+                  const next = event.relatedTarget
+
+                  if (next instanceof Element && next.closest('[data-slot="select-content"]')) {
+                    return
+                  }
+
+                  handleFieldBlur('category', category)
+                }}
               >
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
 
               <SelectContent>
                 <SelectGroup>
-                  {categories.map((item) => (
+                  {CATEGORIES.map((item) => (
                     <SelectItem key={item} value={item}>
                       {item}
                     </SelectItem>
@@ -360,10 +456,10 @@ function ExpenseFormDialog({ onClose, expense }: ExpenseFormDialogProps) {
               </SelectContent>
             </Select>
 
-            <FieldError>{fieldErrors.category}</FieldError>
+            {fieldErrors.category && <FieldError>{fieldErrors.category}</FieldError>}
           </Field>
 
-          <Field data-invalid={Boolean(fieldErrors.date)}>
+          <Field>
             <FieldLabel htmlFor="expense-date" className="gap-0.5">
               Date
               <span aria-hidden="true" className="text-destructive">
@@ -377,48 +473,48 @@ function ExpenseFormDialog({ onClose, expense }: ExpenseFormDialogProps) {
               type="date"
               max={maxDate}
               value={date}
-              aria-invalid={Boolean(fieldErrors.date)}
               onChange={handleDateChange}
+              onBlur={(event) => handleFieldBlur('date', event.target.value)}
             />
 
-            <FieldError>{fieldErrors.date}</FieldError>
+            {fieldErrors.date && <FieldError>{fieldErrors.date}</FieldError>}
           </Field>
 
-          <Field data-invalid={Boolean(fieldErrors.description)}>
-            <FieldLabel htmlFor="expense-description">Description</FieldLabel>
+          <Field>
+            <FieldLabel htmlFor="expense-note">Note</FieldLabel>
 
             <Textarea
-              id="expense-description"
+              id="expense-note"
               name="description"
               placeholder="Optional note"
               value={description}
-              aria-invalid={Boolean(fieldErrors.description)}
               onChange={handleDescriptionChange}
+              onBlur={(event) => handleFieldBlur('description', event.target.value)}
             />
 
             <div className="text-right">
               <span
                 className={cn(
                   'text-xs tabular-nums',
-                  description.length > 450 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground',
+                  description.length > 450 ? 'text-caution-ink' : 'text-ink-muted',
                 )}
               >
                 {description.length}/500
               </span>
             </div>
 
-            <FieldError>{fieldErrors.description}</FieldError>
+            {fieldErrors.description && <FieldError>{fieldErrors.description}</FieldError>}
           </Field>
         </form>
 
         <DialogFooter>
-          <Button variant="secondary" onClick={onClose} disabled={pending}>
+          <Button variant="outline" onClick={onClose} disabled={pending}>
             Cancel
           </Button>
 
           <Button type="submit" form="expense-form" disabled={pending}>
             {pending && <Spinner data-icon="inline-start" />}
-            {expense ? 'Save changes' : 'Add expense'}
+            {expense ? 'Save expense' : 'Add expense'}
           </Button>
         </DialogFooter>
       </DialogContent>

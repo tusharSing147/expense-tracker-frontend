@@ -9,10 +9,6 @@ export function formatINR(amount: number): string {
   return moneyFormatter.format(amount)
 }
 
-export function formatMoney(amount: number): string {
-  return formatINR(amount)
-}
-
 export function formatOver(amount: number): string {
   return `${formatINR(Math.abs(amount))} over`
 }
@@ -32,6 +28,12 @@ export function formatCompactINR(amount: number): string {
   return `${sign}₹${Math.round(abs)}`
 }
 
+/** Short month name without locale surprises ("Sep", never "Sept"). */
+const shortMonthFormatter = new Intl.DateTimeFormat('en-US', {
+  month: 'short',
+  timeZone: 'UTC',
+})
+
 export function formatDateOnly(date: string): string {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date)
 
@@ -40,9 +42,9 @@ export function formatDateOnly(date: string): string {
   }
 
   const [, year, month, day] = match
-  const parsed = new Date(Number(year), Number(month) - 1, Number(day))
+  const parsed = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)))
 
-  return parsed.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+  return `${day} ${shortMonthFormatter.format(parsed)} ${year}`
 }
 
 export function formatMonthYear(month: number, year: number): string {
@@ -51,4 +53,9 @@ export function formatMonthYear(month: number, year: number): string {
     year: 'numeric',
     timeZone: 'UTC',
   })
+}
+
+/** Chart axis month label: "Oct". */
+export function formatMonthShort(month: number, year: number): string {
+  return shortMonthFormatter.format(new Date(Date.UTC(year, month - 1, 1)))
 }

@@ -81,7 +81,7 @@ function toApiError(error: unknown): ApiError {
     return new ApiError('INTERNAL_ERROR', 0, error.message)
   }
 
-  return new ApiError('INTERNAL_ERROR', 0, 'Something went wrong')
+  return new ApiError('INTERNAL_ERROR', 0, 'The request could not be completed. Try again.')
 }
 
 function requestPath(url: string | undefined): string | null {
@@ -240,5 +240,5 @@ export function getErrorMessage(error: unknown): string {
     return error
   }
 
-  return 'Something went wrong'
+  return 'The request could not be completed. Try again.'
 }

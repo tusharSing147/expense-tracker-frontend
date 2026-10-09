@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ReceiptTextIcon } from 'lucide-react'
+import { PlusIcon } from 'lucide-react'
 import { Alert } from '@/components/ui/alert'
 import {
   AlertDialog,
@@ -12,14 +12,6 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from '@/components/ui/empty'
 import { Spinner } from '@/components/ui/spinner'
 import { AppHeader } from '../components/AppHeader'
 import { Pagination } from '../components/Pagination'
@@ -30,7 +22,7 @@ import { ExpenseTable } from '../components/expenses/ExpenseTable'
 import { useDeleteExpense, useExpenses } from '../hooks/useExpenses'
 import type { Expense, ListExpensesParams } from '../types/expense'
 import { apiErrorMessage } from '../utils/errorMessages'
-import { formatMoney } from '../utils/format'
+import { formatINR } from '../utils/format'
 
 const DEFAULT_FILTERS: FilterValue = {
   search: '',
@@ -74,6 +66,7 @@ export function ExpensesPage() {
   const [filters, setFilters] = useState<FilterValue>(DEFAULT_FILTERS)
   const [page, setPage] = useState(1)
   const [editing, setEditing] = useState<Expense | null>(null)
+  const [duplicating, setDuplicating] = useState<Expense | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [deleting, setDeleting] = useState<Expense | null>(null)
   const [banner, setBanner] = useState('')
@@ -145,6 +138,12 @@ export function ExpensesPage() {
     setPage(1)
   }
 
+  function handleSortToggle(column: 'date' | 'amount') {
+    const order: 'asc' | 'desc' = filters.sortBy === column && filters.order === 'desc' ? 'asc' : 'desc'
+
+    handleFilterChange({ sortBy: column, order })
+  }
+
   function handlePageChange(nextPage: number) {
     setPage(nextPage)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -153,17 +152,27 @@ export function ExpensesPage() {
   function handleOpenCreate() {
     setBanner('')
     setEditing(null)
+    setDuplicating(null)
     setFormOpen(true)
   }
 
   function handleOpenEdit(expense: Expense) {
     setBanner('')
     setEditing(expense)
+    setDuplicating(null)
+    setFormOpen(true)
+  }
+
+  function handleDuplicate(expense: Expense) {
+    setBanner('')
+    setEditing(null)
+    setDuplicating(expense)
     setFormOpen(true)
   }
 
   function handleCloseForm() {
     setFormOpen(false)
+    setDuplicating(null)
   }
 
   function handleOpenDeleteRequest(expense: Expense) {
@@ -185,7 +194,7 @@ export function ExpensesPage() {
     }
 
     try {
-      await deleteMutation.mutateAsync(deleting.id)
+      await deleteMutation.mutateAsync(deleting)
       setDeleting(null)
     } catch (error) {
       setDeleting(null)
@@ -197,15 +206,23 @@ export function ExpensesPage() {
     refetch()
   }
 
+  const showTable = !isError && (isPending || (data !== undefined && data.data.length > 0))
+  const showEmpty = !isPending && !isError && data !== undefined && data.data.length === 0
+
   return (
     <div className="min-h-dvh">
       <AppHeader />
 
-      <main className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-8 sm:px-6">
-        <div className="flex items-center justify-between gap-4">
-          <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Expenses</h1>
+      <main className="page flex flex-col gap-[var(--space-5)] py-[var(--space-5)]">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <h1 className="font-display text-xl font-medium tracking-[var(--tracking-display)] text-ink">
+            Expenses
+          </h1>
 
-          <Button onClick={handleOpenCreate}>Add expense</Button>
+          <Button onClick={handleOpenCreate}>
+            <PlusIcon data-icon="inline-start" />
+            Add expense
+          </Button>
         </div>
 
         <ExpensesFilters
@@ -215,74 +232,80 @@ export function ExpensesPage() {
           onClear={handleClearFilters}
         />
 
-        {banner && <Alert variant="destructive">{banner}</Alert>}
-
-        {data && (
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            {data.meta.total} {data.meta.total === 1 ? 'expense' : 'expenses'} · total{' '}
-            {formatMoney(data.totals.sumAmount)}
+        {data !== undefined && data.meta.total > 0 && (
+          <p className="text-sm text-ink-muted">
+            {data.meta.total} {data.meta.total === 1 ? 'expense' : 'expenses'} totalling{' '}
+            <span className="num">{formatINR(data.totals.sumAmount)}</span>
           </p>
         )}
 
-        {isPending && (
-          <div className="flex justify-center py-16">
-            <Spinner className="size-7 text-violet-600" />
+        {banner && <Alert variant="destructive">{banner}</Alert>}
+
+        {!isPending && isError && (
+          <div className="rounded-md border border-[color-mix(in_srgb,var(--color-negative)_35%,transparent)] bg-negative-soft p-[var(--space-5)] text-sm text-negative-ink">
+            <p>Couldn&apos;t load expenses. Check your connection and try again.</p>
+
+            <Button
+              variant="outline"
+              className="mt-[var(--space-4)]"
+              onClick={handleRetry}
+            >
+              Try again
+            </Button>
           </div>
         )}
 
-        {!isPending && isError && (
-          <Alert variant="destructive">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <span>Unable to load expenses. Please try again.</span>
+        {showEmpty && (
+          <div className="mx-auto flex max-w-[60ch] flex-col items-center gap-[var(--space-4)] py-[var(--space-7)] text-center">
+            <p className="text-base text-ink">
+              {hasDefaultFilters(filters)
+                ? 'No expenses yet. Add your first expense.'
+                : 'No expenses match these filters.'}
+            </p>
 
-              <Button variant="secondary" size="sm" onClick={handleRetry}>
-                Try again
+            {hasDefaultFilters(filters) ? (
+              <Button onClick={handleOpenCreate}>
+                <PlusIcon data-icon="inline-start" />
+                Add expense
               </Button>
-            </div>
-          </Alert>
+            ) : (
+              <Button variant="ghost" onClick={handleClearFilters}>
+                Clear filters
+              </Button>
+            )}
+          </div>
         )}
 
-        {!isPending && !isError && data && data.data.length === 0 && (
-          <Empty className="border">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <ReceiptTextIcon />
-              </EmptyMedia>
-
-              <EmptyTitle>No expenses found</EmptyTitle>
-              <EmptyDescription>Add your first expense or adjust the filters.</EmptyDescription>
-            </EmptyHeader>
-
-            <EmptyContent>
-              {hasDefaultFilters(filters) ? (
-                <Button onClick={handleOpenCreate}>Add expense</Button>
-              ) : (
-                <Button variant="secondary" onClick={handleClearFilters}>
-                  Clear filters
-                </Button>
-              )}
-            </EmptyContent>
-          </Empty>
-        )}
-
-        {!isPending && !isError && data && data.data.length > 0 && (
+        {showTable && (
           <>
             <ExpenseTable
-              items={data.data}
-              sumAmount={data.totals.sumAmount}
+              items={data?.data ?? []}
+              sumAmount={data?.totals.sumAmount ?? 0}
+              loading={isPending}
+              sortBy={filters.sortBy}
+              order={filters.order}
+              onSortToggle={handleSortToggle}
               onEdit={handleOpenEdit}
+              onDuplicate={handleDuplicate}
               onDelete={handleOpenDeleteRequest}
             />
 
-            <Pagination
-              page={data.meta.page}
-              totalPages={Math.max(data.meta.totalPages, 1)}
-              onPageChange={handlePageChange}
-            />
+            {!isPending && data && (
+              <Pagination
+                page={data.meta.page}
+                totalPages={Math.max(data.meta.totalPages, 1)}
+                onPageChange={handlePageChange}
+              />
+            )}
           </>
         )}
 
-        <ExpenseFormModal open={formOpen} onClose={handleCloseForm} expense={editing} />
+        <ExpenseFormModal
+          open={formOpen}
+          onClose={handleCloseForm}
+          expense={editing}
+          prefill={duplicating}
+        />
 
         <AlertDialog
           open={Boolean(deleting)}
@@ -309,7 +332,7 @@ export function ExpensesPage() {
                 onClick={handleConfirmDelete}
               >
                 {deleteMutation.isPending && <Spinner data-icon="inline-start" />}
-                Delete
+                Delete expense
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

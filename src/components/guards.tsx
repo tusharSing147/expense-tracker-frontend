@@ -5,8 +5,8 @@ import { useAuth } from '../hooks/useAuth'
 
 function LoadingScreen() {
   return (
-    <div className="flex min-h-dvh items-center justify-center text-gray-400 dark:text-gray-500">
-      <Spinner className="size-8" />
+    <div className="bg-canvas flex min-h-dvh flex-col items-center justify-center gap-4">
+      <Spinner className="text-accent size-8" />
     </div>
   )
 }

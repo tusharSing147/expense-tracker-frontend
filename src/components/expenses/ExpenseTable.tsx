@@ -1,7 +1,6 @@
-import { EllipsisVerticalIcon, PencilIcon, Trash2Icon } from 'lucide-react'
+import { ChevronDownIcon, ChevronUpIcon, CopyIcon, EllipsisVerticalIcon, PencilIcon, TrashIcon } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,6 +8,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
   TableBody,
@@ -19,100 +19,268 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import type { Expense } from '../../types/expense'
-import { formatDateOnly, formatMoney } from '../../utils/format'
+import { formatDateOnly, formatINR } from '../../utils/format'
+import { cn } from '@/lib/utils'
 
 export interface ExpenseTableProps {
   items: Expense[]
   onEdit: (expense: Expense) => void
+  onDuplicate: (expense: Expense) => void
   onDelete: (expense: Expense) => void
   sumAmount: number
+  loading?: boolean
+  sortBy: 'date' | 'amount'
+  order: 'asc' | 'desc'
+  onSortToggle: (column: 'date' | 'amount') => void
 }
 
-const HEAD_CLASS = 'px-4 py-3 text-xs uppercase tracking-wide text-muted-foreground'
+interface SortHeaderProps {
+  label: string
+  column: 'date' | 'amount'
+  sortBy: 'date' | 'amount'
+  order: 'asc' | 'desc'
+  align?: 'left' | 'right'
+  onSortToggle: (column: 'date' | 'amount') => void
+}
 
-export function ExpenseTable({ items, onEdit, onDelete, sumAmount }: ExpenseTableProps) {
+function SortHeader({ label, column, sortBy, order, align = 'left', onSortToggle }: SortHeaderProps) {
+  const active = sortBy === column
+  const ariaSort = active ? (order === 'asc' ? 'ascending' : 'descending') : 'none'
+
   return (
-    <Card className="py-0">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className={HEAD_CLASS}>Date</TableHead>
-            <TableHead className={HEAD_CLASS}>Title</TableHead>
-            <TableHead className={HEAD_CLASS}>Category</TableHead>
-            <TableHead className={`${HEAD_CLASS} text-right`}>Amount</TableHead>
-            <TableHead className={`${HEAD_CLASS} text-right`}>Actions</TableHead>
-          </TableRow>
-        </TableHeader>
+    <TableHead aria-sort={ariaSort} className={cn('h-9', align === 'right' && 'text-right')}>
+      <button
+        type="button"
+        onClick={() => onSortToggle(column)}
+        className="inline-flex cursor-pointer items-center gap-1 rounded-sm text-ink-muted transition-colors duration-[var(--duration-fast)] hover:text-ink"
+      >
+        {label}
 
-        <TableBody>
-          {items.map((expense) => (
-            <TableRow key={expense.id}>
-              <TableCell className="px-4 py-3 text-muted-foreground">
-                {formatDateOnly(expense.date)}
-              </TableCell>
-
-              <TableCell className="px-4 py-3">
-                <p className="font-medium">{expense.title}</p>
-
-                {expense.description && (
-                  <p className="max-w-xs truncate text-xs text-muted-foreground">
-                    {expense.description}
-                  </p>
-                )}
-              </TableCell>
-
-              <TableCell className="px-4 py-3">
-                <Badge variant="secondary">{expense.category}</Badge>
-              </TableCell>
-
-              <TableCell className="px-4 py-3 text-right font-medium tabular-nums">
-                {formatMoney(expense.amount)}
-              </TableCell>
-
-              <TableCell className="px-4 py-3">
-                <div className="flex justify-end">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      aria-label="Actions"
-                      render={<Button variant="ghost" size="icon-sm" />}
-                    >
-                      <EllipsisVerticalIcon />
-                    </DropdownMenuTrigger>
-
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuGroup>
-                        <DropdownMenuItem onClick={() => onEdit(expense)}>
-                          <PencilIcon />
-                          Edit
-                        </DropdownMenuItem>
-
-                        <DropdownMenuItem variant="destructive" onClick={() => onDelete(expense)}>
-                          <Trash2Icon />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuGroup>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </TableCell>
-            </TableRow>
+        {active &&
+          (order === 'asc' ? (
+            <ChevronUpIcon aria-hidden="true" className="size-3" />
+          ) : (
+            <ChevronDownIcon aria-hidden="true" className="size-3" />
           ))}
-        </TableBody>
+      </button>
+    </TableHead>
+  )
+}
 
-        <TableFooter>
-          <TableRow>
-            <TableCell colSpan={3} className={`${HEAD_CLASS} font-medium`}>
-              Total (filtered)
-            </TableCell>
+interface RowActionsProps {
+  expense: Expense
+  onEdit: (expense: Expense) => void
+  onDuplicate: (expense: Expense) => void
+  onDelete: (expense: Expense) => void
+}
 
-            <TableCell className="px-4 py-3 text-right font-semibold tabular-nums">
-              {formatMoney(sumAmount)}
-            </TableCell>
+function RowActions({ expense, onEdit, onDuplicate, onDelete }: RowActionsProps) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        aria-label={`Actions for ${expense.title}`}
+        render={
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="rounded-sm text-ink-muted transition-colors duration-[var(--duration-fast)] hover:bg-surface-sunken hover:text-ink"
+          />
+        }
+      >
+        <EllipsisVerticalIcon />
+      </DropdownMenuTrigger>
 
-            <TableCell className="px-4 py-3" />
-          </TableRow>
-        </TableFooter>
-      </Table>
-    </Card>
+      <DropdownMenuContent align="end">
+        <DropdownMenuGroup>
+          <DropdownMenuItem onClick={() => onEdit(expense)}>
+            <PencilIcon />
+            Edit
+          </DropdownMenuItem>
+
+          <DropdownMenuItem onClick={() => onDuplicate(expense)}>
+            <CopyIcon />
+            Duplicate
+          </DropdownMenuItem>
+
+          <DropdownMenuItem variant="destructive" onClick={() => onDelete(expense)}>
+            <TrashIcon />
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+const SKELETON_ROWS = 5
+
+export function ExpenseTable({
+  items,
+  onEdit,
+  onDuplicate,
+  onDelete,
+  sumAmount,
+  loading = false,
+  sortBy,
+  order,
+  onSortToggle,
+}: ExpenseTableProps) {
+  return (
+    <section
+      aria-busy={loading}
+      className="overflow-hidden rounded-md border border-line bg-surface elevation-1"
+    >
+      <div className="hidden sm:block">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <SortHeader
+                label="Date"
+                column="date"
+                sortBy={sortBy}
+                order={order}
+                onSortToggle={onSortToggle}
+              />
+
+              <TableHead className="h-9">Title</TableHead>
+              <TableHead className="h-9">Category</TableHead>
+
+              <SortHeader
+                label="Amount"
+                column="amount"
+                sortBy={sortBy}
+                order={order}
+                align="right"
+                onSortToggle={onSortToggle}
+              />
+
+              <TableHead className="h-9 text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+
+          <TableBody>
+            {loading &&
+              Array.from({ length: SKELETON_ROWS }, (_, index) => (
+                <TableRow key={`skeleton-${index}`}>
+                  <TableCell colSpan={5} className="p-0">
+                    <Skeleton className="h-[52px] w-full rounded-none" />
+                  </TableCell>
+                </TableRow>
+              ))}
+
+            {!loading &&
+              items.map((expense) => (
+                <TableRow key={expense.id}>
+                  <TableCell className="tabular-nums text-ink-muted">
+                    {formatDateOnly(expense.date)}
+                  </TableCell>
+
+                  <TableCell>
+                    <div className="flex max-w-[360px] flex-col justify-center py-2 leading-tight">
+                      <span className="w-full truncate text-sm font-medium text-ink" title={expense.title}>
+                        {expense.title}
+                      </span>
+
+                      {expense.description && (
+                        <span
+                          className="w-full truncate text-xs text-ink-muted"
+                          title={expense.description}
+                        >
+                          {expense.description}
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
+
+                  <TableCell>
+                    <Badge variant="neutral">{expense.category}</Badge>
+                  </TableCell>
+
+                  <TableCell className="text-right">
+                    <span className="num text-sm font-medium tabular-nums whitespace-nowrap text-ink">
+                      {formatINR(expense.amount)}
+                    </span>
+                  </TableCell>
+
+                  <TableCell>
+                    <div className="flex justify-end">
+                      <RowActions
+                        expense={expense}
+                        onEdit={onEdit}
+                        onDuplicate={onDuplicate}
+                        onDelete={onDelete}
+                      />
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+          </TableBody>
+
+          {!loading && (
+            <TableFooter>
+              <TableRow>
+                <TableCell colSpan={3} className="h-12 text-sm font-medium text-ink">
+                  Total (filtered)
+                </TableCell>
+
+                <TableCell className="text-right">
+                  <span className="num font-display text-lg text-ink">{formatINR(sumAmount)}</span>
+                </TableCell>
+
+                <TableCell />
+              </TableRow>
+            </TableFooter>
+          )}
+        </Table>
+      </div>
+
+      <ul className="sm:hidden">
+        {loading &&
+          Array.from({ length: SKELETON_ROWS }, (_, index) => (
+            <li
+              key={`skeleton-${index}`}
+              className="border-t border-line px-4 py-3 first:border-t-0"
+            >
+              <Skeleton className="h-[52px] w-full" />
+            </li>
+          ))}
+
+        {!loading &&
+          items.map((expense) => (
+            <li
+              key={expense.id}
+              className="border-t border-line px-4 py-3 transition-colors duration-[var(--duration-fast)] first:border-t-0 hover:bg-surface-sunken"
+            >
+              <div className="flex justify-between gap-3">
+                <span
+                  className="min-w-0 flex-1 truncate text-sm font-medium text-ink"
+                  title={expense.title}
+                >
+                  {expense.title}
+                </span>
+
+                <span className="num shrink-0 text-sm font-medium whitespace-nowrap text-ink">
+                  {formatINR(expense.amount)}
+                </span>
+              </div>
+
+              <div className="mt-1 flex items-center gap-2">
+                <Badge variant="neutral">{expense.category}</Badge>
+
+                <span className="text-xs text-ink-muted tabular-nums">{formatDateOnly(expense.date)}</span>
+
+                <div className="ml-auto">
+                  <RowActions
+                    expense={expense}
+                    onEdit={onEdit}
+                    onDuplicate={onDuplicate}
+                    onDelete={onDelete}
+                  />
+                </div>
+              </div>
+            </li>
+          ))}
+      </ul>
+    </section>
   )
 }

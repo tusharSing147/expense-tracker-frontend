@@ -37,6 +37,7 @@ export interface BudgetFormModalProps {
   year: number
   budget: Budget | null
   existingCategories: Category[]
+  defaultCategory?: Category
 }
 
 function validateBudgetForm(category: string, limit: string): Record<string, string> {
@@ -90,11 +91,12 @@ function BudgetFormDialog({
   year,
   budget,
   existingCategories,
+  defaultCategory,
 }: Omit<BudgetFormModalProps, 'open'>) {
   const createMutation = useCreateBudget()
   const updateMutation = useUpdateBudget()
 
-  const [category, setCategory] = useState(budget ? budget.category : '')
+  const [category, setCategory] = useState(budget ? budget.category : (defaultCategory ?? ''))
   const [limit, setLimit] = useState(budget ? String(budget.limit) : '')
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [banner, setBanner] = useState('')
@@ -188,7 +190,9 @@ function BudgetFormDialog({
     >
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{budget ? 'Edit budget' : 'Add budget'}</DialogTitle>
+          <DialogTitle className="font-display text-xl leading-tight tracking-[var(--tracking-display)]">
+            {budget ? 'Edit budget' : 'Add budget'}
+          </DialogTitle>
           <DialogDescription className="sr-only">
             {budget
               ? 'Update the monthly spending limit for this category.'
@@ -200,8 +204,8 @@ function BudgetFormDialog({
 
         <form id="budget-form" className="flex flex-col gap-4" onSubmit={handleSubmit} noValidate>
           {budget ? (
-            <div className="text-sm text-gray-500 dark:text-gray-400">
-              <p className="font-medium text-gray-700 dark:text-gray-300">{budget.category}</p>
+            <div className="text-sm text-ink-muted">
+              <p className="font-medium text-ink">{budget.category}</p>
               <p>{formatMonthYear(month, year)}</p>
             </div>
           ) : (
@@ -259,7 +263,7 @@ function BudgetFormDialog({
           </Field>
 
           {!budget && (
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <p className="text-sm text-ink-muted">
               {formatMonthYear(month, year)}
             </p>
           )}
@@ -272,7 +276,7 @@ function BudgetFormDialog({
 
           <Button type="submit" form="budget-form" disabled={pending}>
             {pending && <Spinner />}
-            Save
+            Save budget
           </Button>
         </DialogFooter>
       </DialogContent>

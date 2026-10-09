@@ -41,7 +41,7 @@ const STATUS_FALLBACKS: Record<number, { code: ApiErrorCode; message: string }> 
 
 const DEFAULT_FALLBACK: { code: ApiErrorCode; message: string } = {
   code: 'INTERNAL_ERROR',
-  message: 'Something went wrong',
+  message: 'The server could not complete this request. Try again.',
 }
 
 function fallbackFor(status: number): { code: ApiErrorCode; message: string } {

@@ -30,7 +30,7 @@ export function YearPicker({ year, onChange, min = 2000, max = 2100, className }
   return (
     <div className={cn('inline-flex items-center gap-2', className)}>
       <Button
-        variant="secondary"
+        variant="ghost"
         size="sm"
         aria-label="Previous year"
         disabled={year <= min}
@@ -39,12 +39,12 @@ export function YearPicker({ year, onChange, min = 2000, max = 2100, className }
         <ChevronIcon d="M15 18l-6-6 6-6" />
       </Button>
 
-      <span className="min-w-20 text-center font-medium tabular-nums text-gray-900 dark:text-gray-100">
+      <span className="min-w-20 text-center font-display text-lg font-medium tabular-nums text-ink">
         {year}
       </span>
 
       <Button
-        variant="secondary"
+        variant="ghost"
         size="sm"
         aria-label="Next year"
         disabled={year >= max}

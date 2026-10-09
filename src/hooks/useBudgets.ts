@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { QueryClient } from '@tanstack/react-query'
 import { toast } from '@/components/ui/toast'
 import { copyBudgets, createBudget, deleteBudget, listBudgets, updateBudget } from '../api/budgets'
-import type { BudgetCopyRequest, BudgetCreate, BudgetUpdate } from '../types/budget'
+import type { Budget, BudgetCopyRequest, BudgetCreate, BudgetUpdate } from '../types/budget'
 import { formatMonthYear } from '../utils/format'
 
 async function invalidateBudgetQueries(queryClient: QueryClient): Promise<void> {
@@ -23,7 +23,7 @@ export function useCreateBudget() {
   return useMutation({
     mutationFn: (data: BudgetCreate) => createBudget(data),
     onSuccess: () => {
-      toast.add({ title: 'Budget created', type: 'success' })
+      toast.add({ title: 'Budget saved', type: 'success' })
 
       return invalidateBudgetQueries(queryClient)
     },
@@ -36,7 +36,7 @@ export function useUpdateBudget() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: BudgetUpdate }) => updateBudget(id, data),
     onSuccess: () => {
-      toast.add({ title: 'Budget updated', type: 'success' })
+      toast.add({ title: 'Budget saved', type: 'success' })
 
       return invalidateBudgetQueries(queryClient)
     },
@@ -47,9 +47,36 @@ export function useDeleteBudget() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (id: string) => deleteBudget(id),
-    onSuccess: () => {
-      toast.add({ title: 'Budget deleted', type: 'success' })
+    mutationFn: (budget: Budget) => deleteBudget(budget.id),
+    onSuccess: (_data, budget) => {
+      const toastId = toast.add({
+        title: 'Budget deleted',
+        type: 'success',
+        actionProps: {
+          children: 'Undo',
+          onClick: () => {
+            createBudget({
+              category: budget.category,
+              limit: budget.limit,
+              month: budget.month,
+              year: budget.year,
+            }).then(
+              () => {
+                toast.close(toastId)
+
+                return invalidateBudgetQueries(queryClient)
+              },
+              () => {
+                toast.add({
+                  type: 'error',
+                  title: 'Budget not restored',
+                  description: 'Set the budget again from the categories list.',
+                })
+              },
+            )
+          },
+        },
+      })
 
       return invalidateBudgetQueries(queryClient)
     },

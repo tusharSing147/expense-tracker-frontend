@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import type { ChangeEvent } from 'react'
+import { SearchIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
+import { Field, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -22,7 +23,7 @@ export interface FilterValue {
   endDate: string
   minAmount: string
   maxAmount: string
-  sortBy: 'date' | 'amount' | 'createdAt'
+  sortBy: 'date' | 'amount'
   order: 'asc' | 'desc'
 }
 
@@ -39,32 +40,32 @@ interface ChipProps {
   onClick: () => void
 }
 
-const SORT_BY_ITEMS: Record<string, string> = {
-  date: 'Newest',
-  amount: 'Amount',
-  createdAt: 'Created',
+const SORT_ITEMS: Record<string, string> = {
+  'date-desc': 'Date, newest first',
+  'date-asc': 'Date, oldest first',
+  'amount-desc': 'Amount, high to low',
+  'amount-asc': 'Amount, low to high',
 }
 
-const ORDER_ITEMS: Record<string, string> = {
-  desc: 'Newest first',
-  asc: 'Oldest first',
+function sortValueOf(value: FilterValue): string {
+  return `${value.sortBy}-${value.order}`
 }
 
 function Chip({ label, selected, onClick }: ChipProps) {
   return (
-    <Button
+    <button
       type="button"
-      variant={selected ? 'default' : 'ghost'}
-      size="sm"
       aria-pressed={selected}
       className={cn(
-        'rounded-full',
-        !selected && 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300',
+        'inline-flex h-8 items-center rounded-full border px-3 text-sm font-medium transition-colors duration-[var(--duration-fast)]',
+        selected
+          ? 'border-accent bg-accent-soft text-accent-soft-ink'
+          : 'border-transparent bg-surface-sunken text-ink-muted hover:text-ink',
       )}
       onClick={onClick}
     >
       {label}
-    </Button>
+    </button>
   )
 }
 
@@ -121,110 +122,140 @@ export function ExpensesFilters({ value, onChange, onResetPage, onClear }: Expen
     applyPatch({ maxAmount: event.target.value })
   }
 
-  function handleSortByChange(next: string | null) {
-    if (!next || next === value.sortBy) {
+  function handleSortChange(next: string | null) {
+    if (!next || next === sortValueOf(value)) {
       return
     }
 
-    applyPatch({ sortBy: next as FilterValue['sortBy'] })
-  }
+    const [sortBy, order] = next.split('-')
 
-  function handleOrderChange(next: string | null) {
-    if (!next || next === value.order) {
-      return
-    }
-
-    applyPatch({ order: next as FilterValue['order'] })
+    applyPatch({ sortBy: sortBy as FilterValue['sortBy'], order: order as FilterValue['order'] })
   }
 
   return (
-    <Card className="p-4">
-      <div className="grid gap-3 md:grid-cols-4">
-        <div className="md:col-span-4">
+    <section className="flex flex-col gap-[var(--space-4)] rounded-md border border-line bg-surface p-[var(--space-5)] elevation-1">
+      <Field>
+        <FieldLabel htmlFor="expenses-search">Search</FieldLabel>
+
+        <div className="relative">
+          <SearchIcon
+            aria-hidden="true"
+            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-subtle"
+          />
+
           <Input
+            id="expenses-search"
             type="search"
-            aria-label="Search expenses"
-            placeholder="Search expenses"
+            className="pl-9"
+            placeholder="Search by title or note"
             value={search}
             onChange={handleSearchChange}
           />
         </div>
+      </Field>
 
-        <div className="flex flex-wrap gap-2 md:col-span-4">
-          <Chip label="All" selected={value.category.length === 0} onClick={() => applyPatch({ category: [] })} />
+      <div role="group" aria-label="Category" className="flex flex-wrap gap-2">
+        <Chip label="All" selected={value.category.length === 0} onClick={() => applyPatch({ category: [] })} />
 
-          {CATEGORIES.map((category) => (
-            <Chip
-              key={category}
-              label={category}
-              selected={value.category.includes(category)}
-              onClick={() => handleToggleCategory(category)}
+        {CATEGORIES.map((category) => (
+          <Chip
+            key={category}
+            label={category}
+            selected={value.category.includes(category)}
+            onClick={() => handleToggleCategory(category)}
+          />
+        ))}
+      </div>
+
+      <div className="flex flex-wrap items-end gap-3">
+        <Field className="w-[calc(50%-0.375rem)] sm:w-[168px]">
+          <FieldLabel htmlFor="expenses-start-date">From date</FieldLabel>
+
+          <Input
+            id="expenses-start-date"
+            type="date"
+            value={value.startDate}
+            onChange={handleStartDateChange}
+          />
+        </Field>
+
+        <Field className="w-[calc(50%-0.375rem)] sm:w-[168px]">
+          <FieldLabel htmlFor="expenses-end-date">To date</FieldLabel>
+
+          <Input id="expenses-end-date" type="date" value={value.endDate} onChange={handleEndDateChange} />
+        </Field>
+
+        <Field className="w-[calc(50%-0.375rem)] sm:w-[168px]">
+          <FieldLabel htmlFor="expenses-min-amount">Min amount</FieldLabel>
+
+          <div className="relative">
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-ink-muted"
+            >
+              ₹
+            </span>
+
+            <Input
+              id="expenses-min-amount"
+              type="text"
+              inputMode="decimal"
+              className="pl-7"
+              placeholder="0.00"
+              value={value.minAmount}
+              onChange={handleMinAmountChange}
             />
-          ))}
-        </div>
+          </div>
+        </Field>
 
-        <Input
-          type="date"
-          aria-label="Start date"
-          value={value.startDate}
-          onChange={handleStartDateChange}
-        />
+        <Field className="w-[calc(50%-0.375rem)] sm:w-[168px]">
+          <FieldLabel htmlFor="expenses-max-amount">Max amount</FieldLabel>
 
-        <Input type="date" aria-label="End date" value={value.endDate} onChange={handleEndDateChange} />
+          <div className="relative">
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-ink-muted"
+            >
+              ₹
+            </span>
 
-        <Input
-          type="number"
-          min={0}
-          step="0.01"
-          aria-label="Minimum amount"
-          placeholder="Min ₹"
-          value={value.minAmount}
-          onChange={handleMinAmountChange}
-        />
+            <Input
+              id="expenses-max-amount"
+              type="text"
+              inputMode="decimal"
+              className="pl-7"
+              placeholder="0.00"
+              value={value.maxAmount}
+              onChange={handleMaxAmountChange}
+            />
+          </div>
+        </Field>
 
-        <Input
-          type="number"
-          min={0}
-          step="0.01"
-          aria-label="Maximum amount"
-          placeholder="Max ₹"
-          value={value.maxAmount}
-          onChange={handleMaxAmountChange}
-        />
+        <Field className="w-full sm:w-[240px]">
+          <FieldLabel htmlFor="expenses-sort">Sort by</FieldLabel>
 
-        <Select value={value.sortBy} items={SORT_BY_ITEMS} onValueChange={handleSortByChange}>
-          <SelectTrigger aria-label="Sort by" className="w-full">
-            <SelectValue />
-          </SelectTrigger>
+          <Select value={sortValueOf(value)} items={SORT_ITEMS} onValueChange={handleSortChange}>
+            <SelectTrigger id="expenses-sort" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
 
-          <SelectContent>
-            <SelectGroup>
-              <SelectItem value="date">Newest</SelectItem>
-              <SelectItem value="amount">Amount</SelectItem>
-              <SelectItem value="createdAt">Created</SelectItem>
-            </SelectGroup>
-          </SelectContent>
-        </Select>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="date-desc">Date, newest first</SelectItem>
+                <SelectItem value="date-asc">Date, oldest first</SelectItem>
+                <SelectItem value="amount-desc">Amount, high to low</SelectItem>
+                <SelectItem value="amount-asc">Amount, low to high</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </Field>
 
-        <Select value={value.order} items={ORDER_ITEMS} onValueChange={handleOrderChange}>
-          <SelectTrigger aria-label="Sort order" className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-
-          <SelectContent>
-            <SelectGroup>
-              <SelectItem value="desc">Newest first</SelectItem>
-              <SelectItem value="asc">Oldest first</SelectItem>
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-
-        <div className="flex items-center md:col-span-2">
-          <Button variant="ghost" onClick={handleClear}>
+        <div className="ml-auto">
+          <Button type="button" variant="ghost" className="text-sm" onClick={handleClear}>
             Clear filters
           </Button>
         </div>
       </div>
-    </Card>
+    </section>
   )
 }

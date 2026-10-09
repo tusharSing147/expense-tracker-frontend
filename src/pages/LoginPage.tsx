@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { CircleAlertIcon } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -11,6 +12,8 @@ import { useAuth } from '../hooks/useAuth'
 import { apiErrorMessage, fieldErrorsFromApi } from '../utils/errorMessages'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+type LoginField = 'email' | 'password'
 
 function validateCredentials(email: string, password: string): Record<string, string> {
   const errors: Record<string, string> = {}
@@ -63,6 +66,16 @@ export function LoginPage() {
     setBanner('')
   }
 
+  function handleBlur(field: LoginField) {
+    const message = validateCredentials(email, password)[field]
+
+    if (message) {
+      setFieldErrors((current) => ({ ...current, [field]: message }))
+    } else {
+      clearFieldError(field)
+    }
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
@@ -97,10 +110,13 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center px-4 py-12">
-      <Card className="w-full max-w-md gap-6 p-8">
+    <div className="flex min-h-dvh flex-col items-center justify-center bg-canvas px-4 py-[var(--space-6)]">
+      <Card className="w-full max-w-[420px] gap-[var(--space-5)] p-[var(--space-6)]">
         <CardHeader className="flex flex-col items-center gap-4 px-0 text-center">
-          <div className="flex size-11 items-center justify-center rounded-xl bg-violet-600 text-lg font-semibold text-white">
+          <div
+            aria-hidden="true"
+            className="flex size-11 items-center justify-center rounded-sm bg-accent text-lg font-semibold text-ink-on-accent"
+          >
             ₹
           </div>
 
@@ -108,32 +124,28 @@ export function LoginPage() {
             <CardTitle
               role="heading"
               aria-level={1}
-              className="text-2xl font-semibold text-gray-900 dark:text-gray-100"
+              className="font-display text-xl font-medium tracking-[var(--tracking-display)] text-ink"
             >
               Welcome back
             </CardTitle>
 
-            <CardDescription className="text-sm text-gray-500 dark:text-gray-400">
+            <CardDescription className="mt-1 text-sm text-ink-muted">
               Sign in to your expense tracker
             </CardDescription>
           </div>
         </CardHeader>
 
-        <CardContent className="flex flex-col gap-6 px-0">
+        <CardContent className="flex flex-col gap-[var(--space-5)] px-0">
           {banner && (
             <Alert variant="destructive">
+              <CircleAlertIcon aria-hidden="true" />
               <AlertDescription>{banner}</AlertDescription>
             </Alert>
           )}
 
-          <form className="flex flex-col gap-4" onSubmit={handleSubmit} noValidate>
+          <form className="flex flex-col gap-[var(--space-4)]" onSubmit={handleSubmit} noValidate>
             <Field data-invalid={fieldErrors.email ? true : undefined}>
-              <FieldLabel htmlFor="email" className="gap-0.5">
-                Email
-                <span aria-hidden="true" className="text-destructive">
-                  *
-                </span>
-              </FieldLabel>
+              <FieldLabel htmlFor="email">Email</FieldLabel>
 
               <Input
                 id="email"
@@ -144,18 +156,14 @@ export function LoginPage() {
                 value={email}
                 aria-invalid={Boolean(fieldErrors.email)}
                 onChange={handleEmailChange}
+                onBlur={() => handleBlur('email')}
               />
 
               {fieldErrors.email && <FieldError id="email-error">{fieldErrors.email}</FieldError>}
             </Field>
 
             <Field data-invalid={fieldErrors.password ? true : undefined}>
-              <FieldLabel htmlFor="password" className="gap-0.5">
-                Password
-                <span aria-hidden="true" className="text-destructive">
-                  *
-                </span>
-              </FieldLabel>
+              <FieldLabel htmlFor="password">Password</FieldLabel>
 
               <Input
                 id="password"
@@ -166,6 +174,7 @@ export function LoginPage() {
                 value={password}
                 aria-invalid={Boolean(fieldErrors.password)}
                 onChange={handlePasswordChange}
+                onBlur={() => handleBlur('password')}
               />
 
               {fieldErrors.password && (
@@ -173,18 +182,18 @@ export function LoginPage() {
               )}
             </Field>
 
-            <Button type="submit" className="w-full" disabled={pending.login}>
+            <Button type="submit" className="h-[38px] w-full" disabled={pending.login}>
               {pending.login && <Spinner className="size-4" />}
               Sign in
             </Button>
           </form>
         </CardContent>
 
-        <p className="text-center text-sm text-gray-500 dark:text-gray-400">
+        <p className="text-center text-sm text-ink-muted">
           Don't have an account?{' '}
           <Link
             to="/register"
-            className="font-medium text-violet-600 hover:underline dark:text-violet-400"
+            className="font-medium text-accent underline-offset-4 hover:text-accent-hover hover:underline"
           >
             Sign up
           </Link>
