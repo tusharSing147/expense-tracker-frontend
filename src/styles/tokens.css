@@ -1,0 +1,158 @@
+/* ============ Base (light) ============ */
+:root {
+  color-scheme: light;
+
+  /* Surfaces */
+  --color-canvas: #F5F4F8;
+  --color-surface: #FFFFFF;
+  --color-surface-sunken: #F0EEF4;   /* table header rows, input wells */
+  --color-raised: #FFFFFF;           /* modals, menus */
+  --color-overlay: rgba(23, 19, 31, 0.48);
+
+  /* Ink */
+  --color-ink: #17131F;
+  --color-ink-muted: #5E5870;
+  --color-ink-subtle: #8A849A;       /* placeholders, disabled text */
+  --color-ink-on-accent: #FFFFFF;
+
+  /* Lines */
+  --color-line: #E6E3EC;             /* default hairline */
+  --color-line-strong: #CFCADB;      /* input borders, hover */
+
+  /* Accent: interaction */
+  --color-accent: #4B1F7A;
+  --color-accent-hover: #3C1763;
+  --color-accent-pressed: #2F1150;
+  --color-accent-soft: #EFE9F7;      /* selected chips, active nav */
+  --color-accent-soft-ink: #4B1F7A;
+  --color-focus: #7A4BC2;
+
+  /* Metal: used only for hero rule and active-month marker */
+  --color-metal: #B8975A;            /* fills and lines */
+  --color-metal-ink: #8A6A33;        /* text on light surfaces */
+
+  /* Status */
+  --color-positive: #2F8F6B;
+  --color-positive-soft: #E6F4EE;
+  --color-positive-ink: #1E6B4F;
+  --color-caution: #C98A1B;
+  --color-caution-soft: #FBF0DA;
+  --color-caution-ink: #8A5A0B;
+  --color-negative: #B3384A;
+  --color-negative-soft: #FAE5E8;
+  --color-negative-ink: #9B2A3C;
+
+  /* Data viz */
+  --chart-bar: color-mix(in srgb, var(--color-accent) 26%, var(--color-surface));
+  --chart-bar-current: var(--color-accent);
+  --chart-grid: var(--color-line);
+  --chart-axis-ink: var(--color-ink-subtle);
+
+  /* Elevation (light uses soft violet-tinted shadow) */
+  --shadow-1: 0 1px 0 rgba(23, 19, 31, 0.04);
+  --shadow-2: 0 1px 0 rgba(23, 19, 31, 0.04), 0 14px 32px -14px rgba(43, 24, 72, 0.16);
+  --shadow-3: 0 2px 0 rgba(23, 19, 31, 0.04), 0 28px 64px -20px rgba(43, 24, 72, 0.30);
+  --edge-highlight: none;
+}
+
+/* ============ Dark ============ */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-canvas: #0D0A13;
+  --color-surface: #151120;
+  --color-surface-sunken: #110D1A;
+  --color-raised: #1D1829;
+  --color-overlay: rgba(4, 2, 8, 0.64);
+
+  --color-ink: #F1EDF8;
+  --color-ink-muted: #A59CB8;
+  --color-ink-subtle: #7A7190;
+  --color-ink-on-accent: #17102A;
+
+  --color-line: #2A2438;
+  --color-line-strong: #3B3350;
+
+  --color-accent: #B9A0F2;
+  --color-accent-hover: #CBB8F6;
+  --color-accent-pressed: #A58AE6;
+  --color-accent-soft: rgba(185, 160, 242, 0.14);
+  --color-accent-soft-ink: #CDBBF6;
+  --color-focus: #CBB8F6;
+
+  --color-metal: #D2B27A;
+  --color-metal-ink: #D2B27A;
+
+  --color-positive: #5CC7A0;
+  --color-positive-soft: rgba(92, 199, 160, 0.14);
+  --color-positive-ink: #7FDBB8;
+  --color-caution: #E5B04F;
+  --color-caution-soft: rgba(229, 176, 79, 0.14);
+  --color-caution-ink: #F0C672;
+  --color-negative: #F0788A;
+  --color-negative-soft: rgba(240, 120, 138, 0.14);
+  --color-negative-ink: #F79AA8;
+
+  --chart-bar: color-mix(in srgb, var(--color-accent) 30%, var(--color-surface));
+  --chart-bar-current: var(--color-accent);
+
+  /* Dark relies on borders and a top-edge highlight, not shadow */
+  --shadow-1: none;
+  --shadow-2: 0 0 0 1px rgba(255, 255, 255, 0.02);
+  --shadow-3: 0 24px 64px -16px rgba(0, 0, 0, 0.7);
+  --edge-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+
+/* ============ Typography ============ */
+:root {
+  --font-display: "Newsreader Variable", "Newsreader", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  --font-ui: "Hanken Grotesk Variable", "Hanken Grotesk", "Segoe UI", system-ui, -apple-system, sans-serif;
+
+  /* Scale: major third (1.25), base 14 for dense data */
+  --text-xs: 0.75rem;     /* 12: helper text, table headers */
+  --text-sm: 0.8125rem;   /* 13: secondary rows, badges */
+  --text-base: 0.875rem;  /* 14: default UI */
+  --text-md: 1rem;        /* 16: inputs (prevents mobile zoom), body copy */
+  --text-lg: 1.25rem;     /* 20: section titles */
+  --text-xl: 1.5625rem;   /* 25: page titles */
+  --text-2xl: 2rem;       /* 32: summary figures */
+  --text-hero: 3.5rem;    /* 56: "left to spend" */
+
+  --leading-tight: 1.1;
+  --leading-ui: 1.4;
+  --leading-body: 1.55;
+
+  --tracking-display: -0.02em;
+  --tracking-ui: 0;
+}
+
+/* ============ Space, shape and depth ============ */
+:root {
+  /* 4px base grid */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4.5rem;
+
+  /* Radius by role: not one value for everything */
+  --radius-xs: 4px;    /* progress bars, chart bar tops, checkboxes */
+  --radius-sm: 8px;    /* inputs, buttons, menu items */
+  --radius-md: 14px;   /* panels and tables */
+  --radius-lg: 22px;   /* modals, drawers */
+  --radius-pill: 999px;/* badges, filter chips, avatar */
+
+  --content-max: 1120px;
+  --nav-height: 60px;
+}
+
+/* ============ Motion ============ */
+:root {
+  --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --duration-fast: 120ms;   /* hover, press */
+  --duration-base: 200ms;   /* menus, theme change */
+  --duration-slow: 360ms;   /* hero count-in, modal */
+}
